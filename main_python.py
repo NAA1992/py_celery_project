@@ -8,16 +8,11 @@ import requests
 import json
 import csv
 import pandas
-
-
-
 import pytz
 
 from time import perf_counter
 from time import sleep
 
-
-# from proj.tasks import add, mul
 from celery.exceptions import MaxRetriesExceededError
 from celery.result import AsyncResult
 from celery.result import allow_join_result
@@ -27,14 +22,25 @@ from celery import current_app
 from celery import shared_task
 from celery import chain
 
+from celery_admin.project_config import ETLConfig
+from celery_admin.project_config import CeleryConfig
 
-app = Celery('celery_python_script', 
-    broker= 'redis://localhost:6379/0',
-    backend= 'redis://localhost:6379/0',
-    timezone='Europe/Moscow',
-    result_expires=86400,                          ## TTL результатов внутри REDIS. Если убрать по дефолту 86400 (сутки)
-    broker_connection_retry_on_startup=True,
-    fixups=[])
+# CFG ETL, Extracts
+current_config = ETLConfig('proj_conf.yaml')
+current_config.cfgs_extract()
+
+# Celery
+celeryclass = CeleryConfig()
+celeryclass.celeryconfig(current_config)
+app = celeryclass.celeryapp()
+
+""" # Присвоить из словаря ключи и значения себе
+dict_app = {k: v for k, v in vars(current_config).items() if k.startswith('app')}
+for key,val in dict_app.items():
+        exec(key + '=val')
+"""
+
+
 
 logger = logging.getLogger('peewee')
 logger.addHandler(logging.StreamHandler())
@@ -47,18 +53,6 @@ url_csv_uploader_base = "http://localhost:8080/api/csv/"
 
 
 ####################################################################
-
-@app.task
-def hello():
-    sleep(2)  # simulate slow computation
-    print ("Hello")
-    return "result_Hello"
-@app.task
-def world():
-    sleep(2)  # simulate slow computation
-    print ("World")
-    return "result_World"
-
 
 @shared_task(bind=True, max_retries=5)
 def send_api_csv_file(self, method='POST', source_file='', scheme='mz_frmo_frmr', table_name=''):
@@ -245,10 +239,10 @@ def chain_csv(self, source_file):
                                 }, countdown=1)"""
     #hello_get = hello.get()
     
-    pus = chain(
-        hello.si()
-        , world.si()
-        ).delay()
+    #pus = chain(
+    #    hello.si()
+    #    , world.si()
+    #    ).delay()
     
     print(type(self.request.children))
     
@@ -270,49 +264,10 @@ def chain_csv(self, source_file):
     #chain = send_api_csv_file.s('POST', source_file, 'mz_frmo_frmr', 'mo_license') | send_api_csv_file.s('POST', source_file, 'mz_frmo_frmr', 'mo_license')
     #chain()
 
-
 if __name__ == "__main__":
-    ######################## БЛОК CELERY ###
-    print(datetime.datetime.now())
-    
-    # В связи с многопоточностью - часто тасков больше, чем потоков, в связи с чем таски в очереди выполняются вместе с перезапуском ETL
-    # Приходится во время перезапуска очищать всю очередь
-    celery_clear_queue = 1
-    if celery_clear_queue == 1:
-        print('!!!WARNING!!! Очищаем у брокера очередь сообщений')
-        app.control.purge()
-    else:
-        print('!!!WARNING!!! Очередь сообщений у брокера остается той же')
-    
-    # Максимальное количество приоритетов и приоритет по умолчанию
-    app.conf.task_queue_max_priority = 10
-    app.conf.task_default_priority = 5
-    
-    
-    # Есть очищалка задач у брокера, по умолчанию очищает в 04:00 утра. Очищает задачи с истекшим TTL (Time-to-live). 
-    # Здесь настраиваем его как часто надо запускать
-    app.conf.beat_schedule = {
-        'backend_cleanup': {
-            'task': 'celery.backend_cleanup',
-            'schedule': 900, # значение в секундах
-        },
-    }
-    
-    # Настраиваем сколько потоков запускать. По умолчанию = количество CPU
-    sys_cpu_cnt = os.cpu_count()
-    celery_cfg_threads = sys_cpu_cnt
-    print (f'ЗАПУСКАЕМ CELERY С КОЛИЧЕСТВОМ ПОТОКОВ: {celery_cfg_threads}')
-    
-    # Подтвердим задачу после выполнения, чтоб была возможность перекинуть на другой worker     
-    app.conf.task_acks_late = True
-    
-    # Максимальное число зарезервированных задач под 1 worker. По умолчанию 4
-    app.conf.worker_prefetch_multiplier = 4
-    
-    # Уровень логирования Celery
-    cloglevel = "warning"
-    
-    ######################## БЛОК CELERY ##########################################
+    ### БЛОК CELERY ###
+    celeryclass.celery_set_config()
+    celeryclass.apply_schedules()
     
     csv_file_to_upload="./etl_extract/mw_personal_file_record.csv"
     if os.path.isfile(csv_file_to_upload) == True:
@@ -357,6 +312,8 @@ if __name__ == "__main__":
                                             , 'cnt_subtasks': 10
                                             }, countdown=3)
     """
-
+    
+    
     # Если количество потоков не указано, то количество потоков = количеству CPU
-    app.worker_main(argv=['worker', f'--concurrency={celery_cfg_threads}', f'--loglevel={cloglevel}', '-S', 'celery.beat.PersistentScheduler','-E', '-B'])
+    app.worker_main(argv=['worker', f'--concurrency={celeryclass.celery_cfg_threads}', f'--loglevel={celeryclass.cloglevel}', '-S', 'celery.beat.PersistentScheduler','-E', '-B', '--without-heartbeat'])
+    sys.exit('WE HAVE FINISHED ETL')

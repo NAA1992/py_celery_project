@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# celery
+celery.*
+
 # Distribution / packaging
 .Python
 build/

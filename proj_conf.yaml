@@ -1,0 +1,52 @@
+sql_debug: 0
+celery:
+  broker_url: redis://localhost:6379/0
+  result_backend: redis://localhost:6379/0
+  loglevel: warning
+  result_expires_minutes: 600
+  schedule_backend_cleanup_minutes: 180
+  clear_queue: 1
+  limits_enable:
+    total_percent_memory: 0
+    total_size_kb_memory: 0
+    perworker_size_kb_memory: 0
+    perworker_cnt_tasks: 0
+    perworker_reserved_tasks: 1
+    threads: 1
+  limits_values:
+    total_percent_memory: 10
+    total_size_kb_memory: 1000000
+    perworker_size_kb_memory: 100000
+    perworker_cnt_tasks: 10
+    perworker_reserved_tasks: 10
+    threads: 15
+datamart:
+  etlsstats:
+    data:
+      host: localhost
+      password: PostgrePass
+      port: 6565
+      user: postgresuser
+    dbname: db_stat
+csv:
+  send_to_api:
+    api_enable: 1
+    api_portion: 0
+    api_countdown_between_insert: 0
+    api_url: http://localhost:8080/api/csv/
+    api_dbmnemonica: mz_frmo_frmr
+    api_send_data: 1
+  save_to_file:
+    enable: 1
+    split_files_by_mb:
+      enable: 1
+      value: 1024
+      delete_source_after_split: 0
+    file_send_to_api_enable: 1
+    path: './etl_extract/'
+    naming:
+      infile_1: 'file_na_prinyatie.csv'
+      infile_2: 'vhodyashiy_file_na_priem.csv'
+
+      outfile_1: 'file_na_otpravku.csv'
+      outfile_2: 'ishodyashiy_file.csv'

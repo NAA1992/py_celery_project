@@ -50,3 +50,10 @@ csv:
 
       outfile_1: 'file_na_otpravku.csv'
       outfile_2: 'ishodyashiy_file.csv'
+  prostore:
+    dbmnemonica: mz_frmo_frmr
+    countdown_insert: 0  
+    api_portion: 1000
+    don_send_query: false
+    enable: 1
+    query_api_endpoint: http://localhost:9090

@@ -1,9 +1,12 @@
 import os
 import yaml
 import psutil
+import sys
 
 from dotmap import DotMap
 from celery import Celery
+from celery import current_app
+from celery import shared_task
 
 class ETLConfig():
 
@@ -281,3 +284,29 @@ class CeleryConfig():
         
     def get_variable(self,varname):
         return getattr(self,varname)
+    
+    
+class celery_internal_tasks():
+    
+    @shared_task(bind=True)
+    def kill_celery(self):
+        print('Поступила команда на убийство всех процессов')
+        cntrl_celery = current_app.control.inspect()
+        active_tasks_by_host = cntrl_celery.active()
+        # list_active_tasks = list(active_tasks.values())
+        # res_tasks_async = AsyncResult(self.request.id)
+        # print(type(active_tasks))
+        # print(type(active_tasks.values()))
+        # print (active_tasks[0])
+        #app.control.shutdown(destination=[self.request.hostname])
+        for hostname in active_tasks_by_host:
+            active_tasks_all = active_tasks_by_host[hostname]  # Количество активных задач
+        for num_act in active_tasks_all:
+            print (num_act.get('id'))
+            if num_act.get('id') != self.request.id:
+                current_app.control.revoke(num_act.get('id'), terminate=True, signal='SIGKILL')
+        print('Убийство процессов произошло. Теперь идет команда на Warm Termination')
+        # app.control.revoke(self.request.id) # prevent this task from being executed again
+        current_app.control.shutdown(destination=[self.request.hostname])
+        print('Полный процесс убийства и теплого завершения закончен. Выходим')
+        sys.exit(1)  

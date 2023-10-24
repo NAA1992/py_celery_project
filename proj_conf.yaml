@@ -19,22 +19,22 @@ celery:
     perworker_size_kb_memory: 100000
     perworker_cnt_tasks: 10
     perworker_reserved_tasks: 10
-    threads: 15
-datamart:
-  etlsstats:
-    data:
-      host: localhost
-      password: PostgrePass
-      port: 6565
-      user: postgresuser
-    dbname: db_stat
+    threads: 2
+source_api:
+  url: https://random-data-api.com/api/cannabis/random_cannabis?size=10
+target_database:
+  host: localhost
+  password: supersecret
+  port: 54321
+  user: postgresuser
+  dbname: postgres
 csv:
   send_to_api:
     api_enable: 1
     api_portion: 0
     api_countdown_between_insert: 0
     api_url: http://localhost:8080/api/csv/
-    api_dbmnemonica: mz_frmo_frmr
+    api_dbmnemonica: mz
     api_send_data: 1
   save_to_file:
     enable: 1

@@ -51,7 +51,7 @@ print(prognoz_current)
 print('*'*50)
 print(prognoz_vnutri_etl)
 print('*'*50)
- 
+
 
 
 
@@ -62,13 +62,13 @@ def rawincount(filename):
 
 
 with open('./etl_extract/KAKASHKA.csv', 'w', newline='') as file:
-                    writer = csv.writer(file, delimiter =';')                    
+                    writer = csv.writer(file, delimiter =';')
                     writer.writerow([
-                        'mw_id' 
-                        , 'mw_oid' 
+                        'mw_id'
+                        , 'mw_oid'
                         , 'last_name'
                         , 'first_name'
-                        , 'middle_name' 
+                        , 'middle_name'
                         , 'work_experience'
                         ])
                     file.close()
@@ -168,12 +168,12 @@ print('Конец Разреза')
 def control_celery(self):
     # Inspect all nodes.
     cntrl_celery = app.control.inspect()
-    
+
     print('='*50)
     print('SCHEDULED')
     print(cntrl_celery.scheduled())
     print('='*50)
-    
+
     print('-'*50)
     #scheduled_tasks = cntrl_celery.scheduled().values()
     scheduled_tasks = cntrl_celery.scheduled()
@@ -196,13 +196,13 @@ def control_celery(self):
     # Show tasks that are currently active.
     print(cntrl_celery.active())
     print('='*50)
-     
+
     print('='*50)
     print('reserved')
     # Show tasks that have been claimed by workers
     print(cntrl_celery.reserved())
     print('='*50)
-    
+
     # app.conf.task_default_queue = 'celery_default_key'       ## По умолчанию routing_key (наименование очереди) = celery. Здесь мы меняем значение по умолчанию
 
 @shared_task(bind=True)
@@ -222,4 +222,40 @@ def task_shutdown_workers(self, flag_error=1):
         # this log will just include content in sys.exit
         logger.error(str('EXIT ERROR'))
         raise Celery.exceptions.WorkerShutdown()
+
+    # Запускаем задачки
+
+
+
+    #(send_api_csv_file.s('POST', csv_file_to_upload, 'mz_frmo_frmr', 'mo_license').set(countdown=1) | send_api_csv_file.s('POST', csv_file_to_upload, 'mz_frmo_frmr', 'mo_license').set(countdown=1)).delay()
+    chain_csv.apply_async(kwargs={
+                                'source_file': csv_file_to_upload
+                                }, countdown=1)
+
+    for cnt_tasks in range (2):
+        send_api_csv_file.apply_async(kwargs={
+                                        'source_file': csv_file_to_upload
+                                        , 'table_name': 'mo_license'
+                                        }, countdown=3)
+
+
+    for cnt_tasks in range (1):
+        task_for_celery.apply_async(kwargs={
+                                        'sleep_seconds': 3
+                                        , 'cnt_values': 900
+                                        }, countdown=3)
+    for cnt_tasks in range (1):
+            task_sleep_and_generate_child.apply_async(kwargs={
+                                            'sleep_seconds': 900
+                                            , 'cnt_subtasks': 10
+                                            }, countdown=3)
+
+
+"""
+
+
+""" # Присвоить из словаря ключи и значения себе
+dict_app = {k: v for k, v in vars(current_config).items() if k.startswith('app')}
+for key,val in dict_app.items():
+        exec(key + '=val')
 """
